@@ -43,11 +43,11 @@ def main():
                     index_finger_tip.y * screen_height)
 
                 distance = calculate_distance(thumb_tip, index_finger_tip)
-
+                print(distance)
                 if handedness == "Right":
                     pyautogui.moveTo(index_finger_x, index_finger_y)
 
-                if handedness == "Left" and distance < pinch_threshold:
+                if handedness == "Left" and pinch_threshold > distance > 0.03:
                     pyautogui.click(button="left")
 
                 # for hand_landmarks in results.multi_hand_landmarks:  # noqa
