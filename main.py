@@ -2,6 +2,8 @@ import cv2
 
 import mediapipe as mp
 import pyautogui
+import numpy as np
+
 
 # TODO: Add Left Button click by recognizing gesture of choice
 # TODO: Improve stability of the mouse
@@ -21,7 +23,8 @@ def main():
     while True:
         ret, frame = video_cap.read()
         frame = cv2.flip(frame, 1)
-
+        frame = cv2.GaussianBlur(frame, (7, 7), 0)
+        frame = cv2.erode(frame, np.ones((7, 7), np.uint8))
         results = mp_hands.process(frame)
         try:
             if results.multi_hand_landmarks:  # noqa
@@ -29,13 +32,13 @@ def main():
 
                 index_finger_tip = hand_landmarks.landmark[8]
                 finger_x, finger_y = int(index_finger_tip.x * screen_width), int(index_finger_tip.y * screen_height)
-                pyautogui.moveTo(finger_x, finger_y, 0.01)
+                pyautogui.moveTo(finger_x, finger_y)
                 # for hand_landmarks in results.multi_hand_landmarks:  # noqa
                 #     mp_drawing.draw_landmarks(frame, hand_landmarks, mp.solutions.hands.HAND_CONNECTIONS)
         except Exception as e:
             print(e)
-        cv2.imshow('camera_feed', frame)
-        k = cv2.waitKey(5)
+        # cv2.imshow('camera_feed', frame)
+        k = cv2.waitKey(1)
         if k == 27:
             break
 
