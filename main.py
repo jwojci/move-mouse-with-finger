@@ -6,8 +6,6 @@ import numpy as np
 import sys
 
 
-# TODO: Add Left Button click by recognizing a gesture
-# TODO: Improve stability of the mouse
 # TODO: Figure out a way to not lose focus around the corners
 
 def calculate_distance(point1, point2):
