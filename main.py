@@ -5,10 +5,9 @@ import pyautogui
 import numpy as np
 
 
-# TODO: Add Left Button click by recognizing gesture of choice
+# TODO: Add Left Button click by recognizing a gesture
 # TODO: Improve stability of the mouse
-# TODO: Figure out a way to not lose focus around the corners (Maybe some process the image using opencv? BackgroundSubtractor?)
-
+# TODO: Figure out a way to not lose focus around the corners
 
 def main():
     # init mediapipe hands module
