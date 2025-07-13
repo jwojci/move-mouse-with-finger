@@ -1,84 +1,101 @@
-from threading import Thread
-
+import mediapipe as mp
+import pyautogui
 import cv2
 
-import func
+import config
+from mouse import VirtualMouse
+from camera import WebcamStream
 
-# TODO: Figure out a way to not lose focus around the corners
 
+def draw_ui(frame, hand_results, margin):
+    # Draw the bounding box
+    frame_height, frame_width, _ = frame.shape
+    start_x = int(margin * frame_width)
+    start_y = int(margin * frame_height)
+    end_x = frame_width - start_x
+    end_y = frame_height - start_y
+    cv2.rectangle(frame, (start_x, start_y), (end_x, end_y), (255, 0, 0), 2)
 
-class WebcamStream:
-    """
-    A class to read frames from a webcam in a dedicated thread.
-    This prevents the main processing loop from blocking while waiting for a new frame.
-    """
-
-    def __init__(self, src=0):
-        # Initialize the video capture stream
-        self.stream = cv2.VideoCapture(src)
-        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-
-        # Read the first frame from the stream
-        (self.grabbed, self.frame) = self.stream.read()
-
-        # Flag to indicate if the thread should be stopped
-        self.stopped = False
-
-    def start(self):
-        # Start a thread to read frames from the video stream
-        thread = Thread(target=self.update, args=())
-        thread.daemon = True
-        thread.start()
-        return self
-
-    def update(self):
-        # Loop until the thread is stopped
-        while not self.stopped:
-            (self.grabbed, self.frame) = self.stream.read()
-
-    def read(self):
-        # Return the most recent frame
-        return self.frame
-
-    def stop(self):
-        # Indicate that the thread should stop
-        self.stopped = True
+    # Draw the hand landmarks
+    if hand_results.multi_hand_landmarks:
+        mp_drawing = mp.solutions.drawing_utils
+        mp_hand_styles = mp.solutions.drawing_styles
+        for hand_landmarks in hand_results.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                hand_landmarks,
+                mp.solutions.hands.HAND_CONNECTIONS,
+                mp_hand_styles.get_default_hand_landmarks_style(),
+                mp_hand_styles.get_default_hand_connections_style(),
+            )
 
 
 def main():
-    # init mediapipe hands module
-    mp_hands = func.get_model()
-
-    # start webcam stream on a seperate thread
+    # --- SETUP ---
+    mp_hands = mp.solutions.hands.Hands(max_num_hands=1)
     webcam_stream = WebcamStream().start()
+    screen_width, screen_height = pyautogui.size()
 
-    # get screen dimensions for mouse control
-    screen_width, screen_height = func.get_screen_dim()
+    mouse = VirtualMouse(screen_width=screen_width, screen_height=screen_height)
 
     # set the threshold for detecting a "pinch" gesture
-    pinch_threshold = 0.09
+    pinch_threshold = config.PINCH_THRESHOLD
+
+    active_area_margin = config.ACTIVE_AREA_MARGIN
 
     while True:
-        # grab the latest frame from the video stream
-        frame = webcam_stream.read()
+        frame = webcam_stream.read()  # grab the latest frame from the video stream
+        frame = cv2.flip(frame, 1)  # flip the frame for a natural "mirror" view
 
-        # flip the frame for a natural "mirror" view
-        frame = cv2.flip(frame, 1)
+        # 1. PROCESS: Get hand landmarks from the frame
+        frame.flags.writeable = False
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = mp_hands.process(frame_rgb)
+        frame.flags.writeable = True
 
-        # process the frame for hand tracking and mouse control
-        func.process_frame(
-            mp_hands, frame, pinch_threshold, screen_width, screen_height
-        )
+        # 2. LOGIC: If a hand is found, update the mouse
+        if results.multi_hand_landmarks:
+            hand_landmarks = results.multi_hand_landmarks[0]
 
-        # display the resulting frame
+            # Extract and map coordinates
+            hand_x = hand_landmarks.landmark[
+                mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP
+            ].x
+            hand_y = hand_landmarks.landmark[
+                mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP
+            ].y
+
+            # Check if hand is in the active area:
+            if (
+                active_area_margin < hand_x < 1 - active_area_margin
+                and active_area_margin < hand_y < 1 - active_area_margin
+            ):
+                mapped_x = (
+                    (hand_x - active_area_margin)
+                    / (1 - 2 * active_area_margin)
+                    * screen_width
+                )
+                mapped_y = (
+                    (hand_y - active_area_margin)
+                    / (1 - 2 * active_area_margin)
+                    * screen_height
+                )
+
+                # Update the mouse and get smoothed coordinates
+                coords = mouse.update(mapped_x, mapped_y)
+
+                # 3. ACTION: If mouse should move, move it
+                if coords:
+                    pyautogui.moveTo(coords[0], coords[1])
+
+        # 4. DRAWING: Draw UI elements on the frame
+        draw_ui(frame, results, active_area_margin)
+
         cv2.imshow("camera_feed", frame)
-
-        k = cv2.waitKey(1)
-        if k == 27:
+        if cv2.waitKey(1) & 0xFF == 27:
             break
 
-    webcam_stream.release()
+    webcam_stream.stop()
     cv2.destroyAllWindows()
 
 
