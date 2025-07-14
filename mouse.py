@@ -84,16 +84,10 @@ class VirtualMouse:
             + (mapped_y - self.anchor_point[1]) ** 2
         )
 
-        # Define sensitivity zones
-        if distance_from_anchor < 30:
-            sensitivity = 0.2
-        elif distance_from_anchor < 100:
-            sensitivity = 5
-        else:
-            sensitivity = 4
+        movement_multiplier = 1 + (speed * config.ACCELERATION_FACTOR) ** 2
 
         # 4. Calculate relative deltas
-        delta_x = smoothed_state[2] * sensitivity
-        delta_y = smoothed_state[3] * sensitivity
+        delta_x = smoothed_state[2] * movement_multiplier
+        delta_y = smoothed_state[3] * movement_multiplier
 
         return (delta_x, delta_y, distance_from_anchor)
