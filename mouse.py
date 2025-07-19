@@ -54,35 +54,36 @@ class VirtualMouse:
         self.last_smoothed_pos = None
         print("Mouse control DEACTIVATED")
 
-    def update(self, finger_x_px, finger_y_px):
+    def update(self, finger_x_px, finger_y_px, dt):
         """
-        Updates the mouse position based on the new finger coordinates.
+        Updates the mouse position based on the new finger coordinates and delta time.
         Returns the (dx, dy) mouse movement delta.
         """
-        if not self.is_active or not self.initialized:
+        if not self.is_active or not self.initialized or dt <= 0:
             return None
 
-        # 1. Kalman Filter: Predict next state and update with new measurement
+        # 1. Correct the Kalman Filter's physics model with the real dt
+        self.kf.F[0, 2] = dt
+        self.kf.F[1, 3] = dt
+
+        # 2. Kalman Filter: Predict and Update
         self.kf.predict()
         self.kf.update(np.array([finger_x_px, finger_y_px]))
-        smoothed_pos = self.kf.x[:2]  # Extract smoothed (x, y) position
+        smoothed_pos = self.kf.x[:2]
 
-        # 2. Calculate Relative Delta
-        # movement is the change in position
+        # 3. Calculate Relative Delta
         delta_pos = smoothed_pos - self.last_smoothed_pos
-
-        # 3. Update State for Next Frame
-        # The current smoothed position becomes the last position for the next iteration
         self.last_smoothed_pos = smoothed_pos
 
-        # 4. Deadzone: If the hand moved very little, ignore to prevent drift
+        # 4. Deadzone
         if np.linalg.norm(delta_pos) < config.DEADZONE_THRESHOLD:
             return None
 
-        # 5. Optional: Acceleration
-        # Apply a multiplier for larger/faster movements. Keep the factor small.
-        speed = np.linalg.norm(delta_pos)
+        # 5. Apply Sensitivity and Acceleration
+        speed = np.linalg.norm(delta_pos) / dt  # Velocity in pixels/sec
         movement_multiplier = 1.0 + (speed * config.ACCELERATION_FACTOR)
-        final_delta = delta_pos * movement_multiplier
+
+        # Scale the delta by our sensitivity factor
+        final_delta = delta_pos * config.SENSITIVITY * movement_multiplier
 
         return (final_delta[0], final_delta[1])
