@@ -6,8 +6,9 @@ import config
 
 class VirtualMouse:
     """
-    Manages the state and logic for the virtual mouse, including
-    Kalman filter smoothing and a velocity-based deadzone.
+    Manages the state and logic for the virtual mouse.
+    Uses a Kalman filter to smooth hand tracking data and calculates relative
+    movement for intuitive cursor control.
     """
 
     def __init__(self, screen_width, screen_height):
@@ -15,79 +16,73 @@ class VirtualMouse:
         self.screen_height = screen_height
 
         self.is_active = False
-        self.anchor_point = None
-        self.sensitivity = 1.5
-
+        self.last_smoothed_pos = None
         self.kf = self._initialize_kalman_filter()
         self.initialized = False
-        self.DEADZONE_THRESHOLD = config.DEADZONE_THRESHOLD
 
     def _initialize_kalman_filter(self):
-        """
-        Initializes the Kalman filter and its' state variables
-        """
+        """Initializes the Kalman filter for smoothing 2D position and velocity."""
         kf = KalmanFilter(dim_x=4, dim_z=2)
-        kf.F = np.array(
-            [
-                [1, 0, 1, 0],
-                [0, 1, 0, 1],
-                [0, 0, 1, 0],
-                [0, 0, 0, 1],
-            ]
-        )
-        kf.H = np.array(
-            [
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
-            ]
-        )
+        # State transition matrix (F)
+        # Assumes constant velocity model
+        dt = 1.0  # time step
+        kf.F = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]])
+        # Measurement matrix (H)
+        # We only measure position
+        kf.H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
+        # Measurement noise covariance (R) - Trust in MediaPipe's raw (x, y)
         kf.R *= config.KF_MEASUREMENT_NOISE
-        kf.Q *= config.KF_PROCESS_NOISE
-        kf.P *= 1000
+        # Process noise covariance (Q) - How much we expect the hand's velocity to change
+        kf.Q = np.eye(4) * config.KF_PROCESS_NOISE
+        # Initial state covariance (P)
+        kf.P *= 100
         return kf
 
-    def activate(self, anchor_x, anchor_y):
+    def activate(self, start_x_px, start_y_px):
+        """Activates mouse control and initializes the filter's state."""
         self.is_active = True
-        self.anchor_point = (anchor_x, anchor_y)
-        self.kf.x = np.array([anchor_x, anchor_y, 0, 0])
+        # Initialize filter at the starting position with zero velocity
+        self.kf.x = np.array([start_x_px, start_y_px, 0, 0])
+        self.last_smoothed_pos = self.kf.x[:2]  # Store initial smoothed position
         self.initialized = True
+        print("Mouse control ACTIVATED")
 
     def deactivate(self):
+        """Deactivates mouse control."""
         self.is_active = False
         self.initialized = False
+        self.last_smoothed_pos = None
+        print("Mouse control DEACTIVATED")
 
-    def update(self, mapped_x, mapped_y):
+    def update(self, finger_x_px, finger_y_px):
         """
-        The main update loop.
-        - Smooths the raw input using the Kalman Filter.
-        - Checks for jitter using a velocity deadzone.
-        - Calculates relative movement with dynamic sensitivity.
+        Updates the mouse position based on the new finger coordinates.
+        Returns the (dx, dy) mouse movement delta.
         """
         if not self.is_active or not self.initialized:
             return None
 
-        # --- 1. Kalman Filter Smoothing
-        # Predict the next state and update with the new measurement
+        # 1. Kalman Filter: Predict next state and update with new measurement
         self.kf.predict()
-        self.kf.update(np.array([[mapped_x], [mapped_y]]))
-        smoothed_state = self.kf.x
+        self.kf.update(np.array([finger_x_px, finger_y_px]))
+        smoothed_pos = self.kf.x[:2]  # Extract smoothed (x, y) position
 
-        # --- 2. Velocity Deadzone
-        speed = np.sqrt(smoothed_state[2] ** 2 + smoothed_state[3] ** 2)
-        if speed < config.DEADZONE_THRESHOLD:
+        # 2. Calculate Relative Delta
+        # movement is the change in position
+        delta_pos = smoothed_pos - self.last_smoothed_pos
+
+        # 3. Update State for Next Frame
+        # The current smoothed position becomes the last position for the next iteration
+        self.last_smoothed_pos = smoothed_pos
+
+        # 4. Deadzone: If the hand moved very little, ignore to prevent drift
+        if np.linalg.norm(delta_pos) < config.DEADZONE_THRESHOLD:
             return None
 
-        # --- 3. Dynamic Sensitivity
-        # Calculate the distance from anchor to determine sensitivity
-        distance_from_anchor = np.sqrt(
-            (mapped_x - self.anchor_point[0]) ** 2
-            + (mapped_y - self.anchor_point[1]) ** 2
-        )
+        # 5. Optional: Acceleration
+        # Apply a multiplier for larger/faster movements. Keep the factor small.
+        speed = np.linalg.norm(delta_pos)
+        movement_multiplier = 1.0 + (speed * config.ACCELERATION_FACTOR)
+        final_delta = delta_pos * movement_multiplier
 
-        movement_multiplier = 1 + (speed * config.ACCELERATION_FACTOR) ** 2
-
-        # 4. Calculate relative deltas
-        delta_x = smoothed_state[2] * movement_multiplier
-        delta_y = smoothed_state[3] * movement_multiplier
-
-        return (delta_x, delta_y, distance_from_anchor)
+        return (final_delta[0], final_delta[1])
