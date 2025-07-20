@@ -15,6 +15,8 @@ class WebcamStream:
     def __init__(self, src=0):
         # Initialize the video capture stream
         self.stream = cv2.VideoCapture(src)
+        if not self.stream.isOpened():
+            raise IOError("Cannot open webcam")
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, config.WEBCAM_WIDTH)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, config.WEBCAM_HEIGHT)
 
@@ -23,6 +25,7 @@ class WebcamStream:
 
         # Flag to indicate if the thread should be stopped
         self.stopped = False
+        self.thread = None
 
     def start(self):
         # Start a thread to read frames from the video stream
@@ -41,13 +44,11 @@ class WebcamStream:
         return self.frame
 
     def stop(self):
+        """Stops the thread and releases the webcam resource."""
         # Indicate that the thread should stop
         self.stopped = True
-
-    def release(self):
-        # Indicate that the thread should stop
-        self.stopped = True
-        # Wait a moment for the thread to finish
-        time.sleep(0.1)
+        # Wait for the thread to finish
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join()
         # Release the video stream resource
         self.stream.release()

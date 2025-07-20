@@ -1,16 +1,14 @@
 import time
-import mediapipe as mp
-from mediapipe.framework.formats import landmark_pb2
 
 import pyautogui
 import cv2 as cv
+import mediapipe as mp
 
 import config
-from mouse import VirtualMouse
 from camera import WebcamStream
-from vision import Vision
-from ui import UserInterface
 from engine import InferenceEngine
+from mouse import VirtualMouse
+from ui import UserInterface
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
@@ -18,10 +16,10 @@ pyautogui.PAUSE = 0
 
 def main():
     # --- SETUP ---
+    # The InferenceEngine now manages the Vision model
     inference_engine = InferenceEngine()
     inference_engine.start()
 
-    vision = Vision()
     webcam_stream = WebcamStream().start()
     screen_width, screen_height = pyautogui.size()
     mouse = VirtualMouse(screen_width=screen_width, screen_height=screen_height)
@@ -34,35 +32,31 @@ def main():
     click_cooldown = 0.5  # seconds
     last_click_time = 0
 
-    last_known_result = None
-
     # --- MAIN LOOP ---
     try:
         while True:
             current_time = time.time()
-            dt = current_time - prev_time  # <-- Calculate delta time (dt)
+            dt = current_time - prev_time
             prev_time = current_time
+            fps = 1 / dt if dt > 0 else 0
 
-            if dt > 0:
-                fps = 1 / dt
-            else:
-                fps = 0
-
+            # 1. Get the latest frame from the camera thread
             frame = webcam_stream.read()
             if frame is None:
                 continue
 
             frame = cv.flip(frame, 1)
-            # 1. Create a smaller frame for AI processing
+
+            # 2. Prepare frame and send it to the inference engine (Producer)
             processing_frame = cv.resize(
                 frame, (config.PROCESSING_WIDTH, config.PROCESSING_HEIGHT)
             )
-
-            # 2. Convert the SMALLER frame to RGB
             rgb_processing_frame = cv.cvtColor(processing_frame, cv.COLOR_BGR2RGB)
+            inference_engine.update_frame(rgb_processing_frame)
 
-            # 3. Give the SMALLER frame to the model
-            recognition_result = vision.recognize(rgb_processing_frame)
+            # 3. Get the latest result from the inference engine (Consumer)
+            # This is non-blocking and returns the most recent result available.
+            recognition_result = inference_engine.get_latest_result()
 
             gesture_name = "None"
             if recognition_result and recognition_result.gestures:
@@ -76,31 +70,30 @@ def main():
                     ]
                     if not mouse.is_active:
                         mouse.activate(
-                            finger_tip.x * screen_width, finger_tip.y * screen_height
+                            finger_tip.x * config.WEBCAM_WIDTH,
+                            finger_tip.y * config.WEBCAM_HEIGHT,
                         )
                     else:
-                        delta = mouse.update(
-                            finger_tip.x * screen_width,
-                            finger_tip.y * screen_height,
-                            dt,
-                        )
+                        # Use the original webcam resolution for coordinate mapping
+                        target_x = finger_tip.x * config.WEBCAM_WIDTH
+                        target_y = finger_tip.y * config.WEBCAM_HEIGHT
+
+                        delta = mouse.update(target_x, target_y, dt)
                         if delta:
                             pyautogui.move(delta[0], delta[1])
+
                 elif gesture_name in config.ACTION_GESTURES:
                     # Any action gesture deactivates mouse movement.
-                    if mouse.is_active:
-                        mouse.deactivate()
+                    mouse.deactivate()
                     if gesture_name == "Thumb_Up":
                         if current_time - last_click_time > click_cooldown:
                             pyautogui.click()
-                            last_click_time = time.time()
+                            last_click_time = current_time
             else:
                 # No hand detected, deactivate mouse.
-                if mouse.is_active:
-                    mouse.deactivate()
+                mouse.deactivate()
 
             # --- DRAWING ---
-            # Use the UI class to draw all feedback on the frame
             final_frame = ui.draw(
                 frame, recognition_result, gesture_name, mouse.is_active, fps
             )
@@ -110,8 +103,9 @@ def main():
                 break
     finally:
         # --- CLEANUP ---
+        print("Shutting down...")
         inference_engine.stop()
-        webcam_stream.release()  # Use the release method you created
+        webcam_stream.stop()
         cv.destroyAllWindows()
 
 
