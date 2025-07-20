@@ -7,7 +7,7 @@ PROCESSING_WIDTH = 320
 PROCESSING_HEIGHT = 240
 
 # Mouse Control Settings
-SENSITIVITY = 0.9
+SENSITIVITY = 0.6
 ACTIVE_AREA_MARGIN = 0.05  # Percentage of the screen to use as a deadzone border
 DEADZONE_THRESHOLD = 1.5  # Velocity threshold to consider the mouse "stopped"
 VIRTUAL_TOUCHPAD_SIZE = 0.2
@@ -17,10 +17,11 @@ ACCELERATION_FACTOR = 0.02
 # If the cursor is too jittery increase this value, if it feels heavy or laggy decrease it
 KF_MEASUREMENT_NOISE = 0.3  # R value - Trust in MediaPipe measurements
 # If the cursor feels slow to react increas this value, if it overshoots or feels wobbly decrease it
-KF_PROCESS_NOISE = 0.01  # Q value - Trust in the physics model
+KF_PROCESS_NOISE = 0.005  # Q value - Trust in the physics model
 
 # Gesture Settings (we'll use this later)
-PINCH_THRESHOLD = 0.04
+PINCH_THRESHOLD = 0.062
 
-NEUTRAL_GESTURES = {"Open_Palm", "Pointing_Up", "None"}
+MOVEMENT_GESTURES = {"Open_Palm", "Pointing_Up", "None"}
 ACTION_GESTURES = {"Thumb_Up", "Closed_Fist", "Victory"}
+GESTURE_CONFIRMATION_FRAMES = 3

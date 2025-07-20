@@ -12,21 +12,25 @@ class UserInterface:
         self.INACTIVE_COLOR = (0, 0, 255)  # Red
         self.TEXT_COLOR = (255, 255, 255)  # White
 
-    def draw(self, frame, recognition_result, gesture_name, is_active, fps):
+    def draw(self, frame, recognition_result, gesture_name, current_state, fps):
         """The main drawing method. Call this once per frame."""
-        landmark_color = self.ACTIVE_COLOR if is_active else self.INACTIVE_COLOR
+        # Determine color based on the state
+        if current_state == current_state.MOUSE_MOVEMENT:
+            landmark_color = (0, 255, 0)  # Green
+        elif current_state == current_state.DRAGGING:
+            landmark_color = (0, 0, 255)  # Red
+        else:  # IDLE
+            landmark_color = (255, 255, 255)  # White
 
-        # Draw hand landmarks if a hand is detected
         if recognition_result and recognition_result.hand_landmarks:
             self._draw_hand_landmarks(
                 frame, recognition_result.hand_landmarks, landmark_color
             )
 
-        # Draw the current gesture name
-        self._draw_text(frame, f"Gesture: {gesture_name}", (50, 50))
-
-        # Draw the FPS counter
-        self._draw_text(frame, f"FPS: {int(fps)}", (10, 90))
+        # Display the current state and gesture
+        self._draw_text(frame, f"State: {current_state.name}", (10, 50))
+        self._draw_text(frame, f"Gesture: {gesture_name}", (10, 90))
+        self._draw_text(frame, f"FPS: {int(fps)}", (10, 130))
 
         return frame
 

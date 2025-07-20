@@ -2,6 +2,7 @@ import numpy as np
 from filterpy.kalman import KalmanFilter
 
 import config
+from utils import State
 
 
 class VirtualMouse:
@@ -54,7 +55,7 @@ class VirtualMouse:
         self.last_smoothed_pos = None
         print("Mouse control DEACTIVATED")
 
-    def update(self, finger_x_px, finger_y_px, dt):
+    def update(self, finger_x_px, finger_y_px, dt, state):
         """
         Updates the mouse position based on the new finger coordinates and delta time.
         Returns the (dx, dy) mouse movement delta.
@@ -82,6 +83,9 @@ class VirtualMouse:
         # 5. Apply Sensitivity and Acceleration
         speed = np.linalg.norm(delta_pos) / dt  # Velocity in pixels/sec
         movement_multiplier = 1.0 + (speed * config.ACCELERATION_FACTOR)
+
+        if state == State.DRAGGING:
+            movement_multiplier /= 2
 
         # Scale the delta by our sensitivity factor
         final_delta = delta_pos * config.SENSITIVITY * movement_multiplier
