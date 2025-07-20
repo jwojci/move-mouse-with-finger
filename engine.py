@@ -13,7 +13,7 @@ class InferenceEngine:
     def __init__(self):
         self.vision = Vision()
         self.latest_result = None
-        self.lock = threading.Lock()  # Lock is now ONLY for latest_result
+        self.lock = threading.Lock()
 
         # A queue to hold frames for the inference thread to process.
         # maxsize=1 ensures we only process the most recent frame and drop old ones.
@@ -65,14 +65,14 @@ class InferenceEngine:
     def update_frame(self, frame):
         """Receives a new frame from the main thread for processing."""
         # If the queue is full, it means the model is still busy.
-        # We first clear the queue to drop the stale frame...
+        # We first clear the queue to drop the stale frame
         if not self.frame_queue.empty():
             try:
                 self.frame_queue.get_nowait()
             except queue.Empty:
                 pass
 
-        # ...then we put the new, most recent frame into the queue.
+        # then we put the new, most recent frame into the queue.
         try:
             self.frame_queue.put_nowait(frame)
         except queue.Full:
