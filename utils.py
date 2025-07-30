@@ -1,8 +1,10 @@
-from enum import Enum
+# /move-mouse-with-finger/utils.py
+
+from enum import auto, Enum
 
 
 class State(Enum):
-    IDLE = 0
-    MOUSE_MOVEMENT = 1
-    DRAGGING = 2
-    SCROLLING = 3
+    MOUSE_MOVEMENT = auto()
+    IDLE = auto()  # Default state
+    DRAGGING = auto()  # Left hand is pinched
+    SCROLLING = auto()  # Left hand is a fist

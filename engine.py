@@ -52,15 +52,9 @@ class InferenceEngine:
             self.thread.start()
 
     def stop(self):
-        """Stops the background inference thread."""
+        """Stops the background inference thread cleanly."""
         if self.is_running:
             self.is_running = False
-            # Put a sentinel value to unblock the queue.get()
-            try:
-                self.frame_queue.put_nowait(None)
-            except queue.Full:
-                pass
-            self.thread.join()
 
     def update_frame(self, frame):
         """Receives a new frame from the main thread for processing."""

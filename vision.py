@@ -14,7 +14,7 @@ class Vision:
             self.recognizer_options = vision.GestureRecognizerOptions(
                 base_options=self.base_options,
                 running_mode=vision.RunningMode.VIDEO,
-                num_hands=1,
+                num_hands=2,
             )
             self.recognizer = vision.GestureRecognizer.create_from_options(
                 self.recognizer_options

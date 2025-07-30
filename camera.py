@@ -1,4 +1,3 @@
-import time
 from threading import Thread
 
 import cv2
@@ -29,9 +28,9 @@ class WebcamStream:
 
     def start(self):
         # Start a thread to read frames from the video stream
-        thread = Thread(target=self.update, args=())
-        thread.daemon = True
-        thread.start()
+        self.thread = Thread(target=self.update, args=())
+        self.thread.daemon = True
+        self.thread.start()
         return self
 
     def update(self):
@@ -47,8 +46,4 @@ class WebcamStream:
         """Stops the thread and releases the webcam resource."""
         # Indicate that the thread should stop
         self.stopped = True
-        # Wait for the thread to finish
-        if self.thread is not None and self.thread.is_alive():
-            self.thread.join()
-        # Release the video stream resource
         self.stream.release()

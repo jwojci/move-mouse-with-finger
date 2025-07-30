@@ -12,7 +12,9 @@ class UserInterface:
         self.INACTIVE_COLOR = (0, 0, 255)  # Red
         self.TEXT_COLOR = (255, 255, 255)  # White
 
-    def draw(self, frame, recognition_result, gesture_name, current_state, fps):
+    def draw(
+        self, frame, recognition_result, gesture_name, current_state, fps, is_active
+    ):
         """The main drawing method. Call this once per frame."""
         # Determine color based on the state
         if current_state == current_state.MOUSE_MOVEMENT:
@@ -28,9 +30,12 @@ class UserInterface:
             )
 
         # Display the current state and gesture
-        self._draw_text(frame, f"State: {current_state.name}", (10, 50))
-        self._draw_text(frame, f"Gesture: {gesture_name}", (10, 90))
-        self._draw_text(frame, f"FPS: {int(fps)}", (10, 130))
+        status_text = "Status: Active" if is_active else "Status: Paused"
+        status_color = self.ACTIVE_COLOR if is_active else self.INACTIVE_COLOR
+        self._draw_text(frame, status_text, (10, 50), color=status_color)
+        self._draw_text(frame, f"State: {current_state.name}", (10, 90))
+        self._draw_text(frame, f"Gesture: {gesture_name}", (10, 130))
+        self._draw_text(frame, f"FPS: {int(fps)}", (10, 170))
 
         return frame
 
@@ -58,15 +63,16 @@ class UserInterface:
                 ),
             )
 
-    def _draw_text(self, frame, text, position):
+    def _draw_text(self, frame, text, position, color=None):
         """Utility to draw text on the frame."""
+        text_color = color if color is not None else self.TEXT_COLOR
         cv.putText(
             frame,
             text,
             position,
             cv.FONT_HERSHEY_SIMPLEX,
             1,
-            self.TEXT_COLOR,
+            text_color,
             2,
             cv.LINE_AA,
         )

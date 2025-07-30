@@ -1,27 +1,23 @@
 # Screen and Camera settings
 WEBCAM_WIDTH = 640
 WEBCAM_HEIGHT = 480
-
-# Processing resolution (for model inference)
 PROCESSING_WIDTH = 320
 PROCESSING_HEIGHT = 240
 
-# Mouse Control Settings
-SENSITIVITY = 0.6
-ACTIVE_AREA_MARGIN = 0.05  # Percentage of the screen to use as a deadzone border
-DEADZONE_THRESHOLD = 1.5  # Velocity threshold to consider the mouse "stopped"
-VIRTUAL_TOUCHPAD_SIZE = 0.2
-ACCELERATION_FACTOR = 0.02
+# --- Mouse Control Settings ---
+SENSITIVITY = 1.2
+DRAG_SENSITIVITY = 0.7
+SCROLL_SENSITIVITY = 50
+DEADZONE_THRESHOLD = 1.0
+ACCELERATION_FACTOR = 0.03
 
-# Kalman Filter Tuning
-# If the cursor is too jittery increase this value, if it feels heavy or laggy decrease it
-KF_MEASUREMENT_NOISE = 0.3  # R value - Trust in MediaPipe measurements
-# If the cursor feels slow to react increas this value, if it overshoots or feels wobbly decrease it
-KF_PROCESS_NOISE = 0.005  # Q value - Trust in the physics model
+# --- Kalman Filter Tuning ---
+KF_MEASUREMENT_NOISE = 0.6
+KF_PROCESS_NOISE = 0.01
 
-# Gesture Settings (we'll use this later)
-PINCH_THRESHOLD = 0.062
-
-MOVEMENT_GESTURES = {"Open_Palm", "Pointing_Up", "None"}
-ACTION_GESTURES = {"Thumb_Up", "Closed_Fist", "Victory"}
-GESTURE_CONFIRMATION_FRAMES = 3
+# --- Gesture Settings ---
+PINCH_THRESHOLD = 0.06
+POINTING_THRESHOLD = 0.07
+FIST_THRESHOLD = 0.15
+CLICK_GESTURE = "Thumb_Up"
+NEUTRAL_GESTURE = "Victory"
