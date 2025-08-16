@@ -111,14 +111,12 @@ class MouseCamApp:
 
                 # 4. --- STATE MACHINE ---
                 if self.is_mouse_on and left_hand:
-                    if gestures.is_fisted(left_hand):
-                        self.current_state = State.SCROLLING
-                    elif gestures.is_pinched(left_hand):
+                    # if gestures.is_fisted(left_hand):
+                    # self.current_state = State.SCROLLING
+                    if gestures.is_pinched(left_hand):
                         self.current_state = State.DRAGGING
                     elif left_gesture_str == config.CLICK_GESTURE:
-                        pyautogui.click()
-                        time.sleep(0.2)
-                        self.current_state = State.IDLE
+                        self.current_state = State.SCROLLING
                     else:
                         self.current_state = State.IDLE
                 else:
