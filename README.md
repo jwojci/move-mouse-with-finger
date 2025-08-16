@@ -8,7 +8,7 @@ This application enables users to control their mouse through a gesture-based sy
 
 ## Demo 
 
-<video src="https://github.com/jwojci/move-mouse-with-finger/blob/main/demo/demo.mp4" controls="false" autoplay="true" loop="true" muted="true" playsinline="true" width="100%"></video>
+<video src="https://github.com/jwojci/move-mouse-with-finger/raw/main/demo/demo.mp4?raw=true" controls="false" autoplay="true" loop="true" muted="true" playsinline="true" width="100%"></video>
 
 ---
 
