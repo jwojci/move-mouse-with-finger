@@ -46,7 +46,7 @@ class MouseCamApp:
         # --- Application State ---
         self.is_mouse_on = False
         self.last_toggle_time = 0
-        self.toggle_cooldown = 0.5  # seconds
+        self.toggle_cooldown = 0.5  # Seconds
 
         self.current_state = State.IDLE
         self.prev_state = State.IDLE
