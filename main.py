@@ -1,15 +1,13 @@
-# /move-mouse-with-finger/main.py
-
 import time
 import traceback
 
 import pyautogui
 import cv2 as cv
-import numpy as np
 import mediapipe as mp
 from loguru import logger
 
 import config
+import gestures
 from utils import State
 from camera import WebcamStream
 from engine import InferenceEngine
@@ -17,11 +15,9 @@ from mouse import VirtualMouse
 from ui import UserInterface
 from settings_gui import SettingsGUI
 
-# --- PyAutoGUI Configuration ---
+# --- Configurations ---
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
-
-# --- Logger Configuration ---
 logger.add("main.log", rotation="10 MB")
 
 
@@ -58,29 +54,6 @@ class MouseCamApp:
         self.last_known_result = None
         self.prev_time = time.time()
 
-    def _is_pointing(self, hand_landmarks):
-        """Checks if the hand is in a pointing gesture."""
-        index_tip_y = hand_landmarks[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP].y
-        middle_mcp_y = hand_landmarks[
-            mp.solutions.hands.HandLandmark.MIDDLE_FINGER_MCP
-        ].y
-        return (middle_mcp_y - index_tip_y) > config.POINTING_THRESHOLD
-
-    def _get_finger_distance(self, hand_landmarks, finger1, finger2):
-        """Calculates the Euclidean distance between two finger landmarks."""
-        p1 = hand_landmarks[finger1]
-        p2 = hand_landmarks[finger2]
-        return np.linalg.norm(np.array([p1.x, p1.y]) - np.array([p2.x, p2.y]))
-
-    def _is_fisted(self, hand_landmarks):
-        """Checks if the hand is in a fist gesture."""
-        index_tip = hand_landmarks[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP]
-        wrist = hand_landmarks[mp.solutions.hands.HandLandmark.WRIST]
-        distance = np.linalg.norm(
-            np.array([index_tip.x, index_tip.y]) - np.array([wrist.x, wrist.y])
-        )
-        return distance < config.FIST_THRESHOLD
-
     def run(self):
         """The main application loop."""
         try:
@@ -109,9 +82,9 @@ class MouseCamApp:
 
                 # 2. --- Hand Data Processing ---
                 left_hand, right_hand = None, None
-                left_gesture = "None"
+                left_gesture_str = "None"
                 if self.last_known_result and self.last_known_result.hand_landmarks:
-                    gestures = self.last_known_result.gestures or []
+                    detected_gestures = self.last_known_result.gestures or []
                     for i, hand in enumerate(self.last_known_result.handedness):
                         hand_label = hand[0].category_name
                         landmarks = self.last_known_result.hand_landmarks[i]
@@ -120,15 +93,15 @@ class MouseCamApp:
                         # Spatial check to prevent hand misidentification
                         if hand_label == "Right" and wrist_x < 0.5:
                             left_hand = landmarks
-                            if i < len(gestures) and gestures[i]:
-                                left_gesture = gestures[i][0].category_name
+                            if i < len(detected_gestures) and detected_gestures[i]:
+                                left_gesture_str = detected_gestures[i][0].category_name
                         elif hand_label == "Left" and wrist_x > 0.5:
                             right_hand = landmarks
 
                 self.prev_state = self.current_state
 
                 # 3. --- GESTURE TOGGLE LOGIC ---
-                if left_hand and left_gesture == config.NEUTRAL_GESTURE:
+                if left_hand and left_gesture_str == config.NEUTRAL_GESTURE:
                     if (current_time - self.last_toggle_time) > self.toggle_cooldown:
                         self.is_mouse_on = not self.is_mouse_on
                         self.last_toggle_time = current_time
@@ -138,21 +111,13 @@ class MouseCamApp:
 
                 # 4. --- STATE MACHINE ---
                 if self.is_mouse_on and left_hand:
-                    is_pinched = (
-                        self._get_finger_distance(
-                            left_hand,
-                            mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP,
-                            mp.solutions.hands.HandLandmark.THUMB_TIP,
-                        )
-                        < config.PINCH_THRESHOLD
-                    )
-                    if self._is_fisted(left_hand):
+                    if gestures.is_fisted(left_hand):
                         self.current_state = State.SCROLLING
-                    elif is_pinched:
+                    elif gestures.is_pinched(left_hand):
                         self.current_state = State.DRAGGING
-                    elif left_gesture == config.CLICK_GESTURE:
+                    elif left_gesture_str == config.CLICK_GESTURE:
                         pyautogui.click()
-                        time.sleep(0.2)  # Cooldown to prevent rapid multi-clicks
+                        time.sleep(0.2)
                         self.current_state = State.IDLE
                     else:
                         self.current_state = State.IDLE
@@ -177,8 +142,7 @@ class MouseCamApp:
                             self.mouse.deactivate()
                         scroll_amount = (0.5 - finger_tip.y) * config.SCROLL_SENSITIVITY
                         pyautogui.scroll(int(scroll_amount))
-
-                    elif self._is_pointing(right_hand) and self.current_state in [
+                    elif gestures.is_pointing(right_hand) and self.current_state in [
                         State.IDLE,
                         State.DRAGGING,
                     ]:
@@ -211,7 +175,7 @@ class MouseCamApp:
                 final_frame = self.ui.draw(
                     frame,
                     self.last_known_result,
-                    left_gesture,
+                    left_gesture_str,
                     self.current_state,
                     fps,
                     self.is_mouse_on,
@@ -224,8 +188,10 @@ class MouseCamApp:
             self.cleanup()
 
     def cleanup(self):
-        """Cleans up all resources."""
-        logger.info("Shutting down...")
+        """Cleans up all resources for a graceful shutdown."""
+        logger.info("Shutting down all components...")
+        self.settings_gui.stop()
+        self.inference_engine.stop()
         self.webcam_stream.stop()
         cv.destroyAllWindows()
 

@@ -54,7 +54,10 @@ class InferenceEngine:
     def stop(self):
         """Stops the background inference thread cleanly."""
         if self.is_running:
-            self.is_running = False
+            return
+        self.stopped = True
+        if self.thread and self.thread.is_alive():
+            self.thread.join()  # Wait for the thread to finish its loop
 
     def update_frame(self, frame):
         """Receives a new frame from the main thread for processing."""

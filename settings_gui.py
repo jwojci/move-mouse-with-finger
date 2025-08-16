@@ -57,5 +57,6 @@ class SettingsGUI(threading.Thread):
 
     def stop(self):
         if self.root:
-            self.root.destroy()
-            self.root = None
+            # Schedule self.root.destroy to be called by the GUI thread itself
+            self.root.after(0, self.root.destroy)
+            self.root = None  # Set to None immediately after scheduling

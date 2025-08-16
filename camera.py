@@ -45,5 +45,9 @@ class WebcamStream:
     def stop(self):
         """Stops the thread and releases the webcam resource."""
         # Indicate that the thread should stop
+        if self.stopped:  # or self.is_running for engine
+            return
         self.stopped = True
-        self.stream.release()
+        if self.thread and self.thread.is_alive():
+            self.thread.join()  # Wait for the thread to finish its loop
+            self.stream.release()
