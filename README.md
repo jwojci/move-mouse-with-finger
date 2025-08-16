@@ -8,7 +8,7 @@ This application enables users to control their mouse through a gesture-based sy
 
 ## Demo 
 
-<video src="demo/demo.mp4" controls="false" autoplay="true" loop="true" muted="true" playsinline="true" width="100%"></video>
+<video src="./demo/demo.mp4" controls="false" autoplay="true" loop="true" muted="true" playsinline="true" width="100%"></video>
 
 ---
 
