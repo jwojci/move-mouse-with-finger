@@ -43,7 +43,7 @@ This application enables users to control their mouse through a gesture-based sy
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/jwojci/MouseCam.git](https://github.com/jwojci/MouseCam.git)
+    git clone https://github.com/jwojci/MouseCam.git
     cd MouseCam
     ```
 
