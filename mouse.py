@@ -1,8 +1,11 @@
 import numpy as np
+from loguru import logger
 from filterpy.kalman import KalmanFilter
 
 import config
 from utils import State
+
+logger.add("mouse.log")
 
 
 class VirtualMouse:
@@ -46,14 +49,14 @@ class VirtualMouse:
         self.kf.x = np.array([start_x_px, start_y_px, 0, 0])
         self.last_smoothed_pos = self.kf.x[:2]  # Store initial smoothed position
         self.initialized = True
-        print("Mouse control ACTIVATED")
+        logger.info("Mouse control ACTIVATED")
 
     def deactivate(self):
         """Deactivates mouse control."""
         self.is_active = False
         self.initialized = False
         self.last_smoothed_pos = None
-        print("Mouse control DEACTIVATED")
+        logger.info("Mouse control DEACTIVATED")
 
     def update(self, finger_x_px, finger_y_px, dt, state):
         """
